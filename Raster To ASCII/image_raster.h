@@ -105,10 +105,10 @@ static char get_char(image* img) {
 static char get_char_w(image* img, int** buf, int sample_size) {
     int x, y;
     get_current_pixel_xy(img, &x, &y);
-    int dist_to_right = img->width - (x+sample_size);
-    int dist_to_bottom = img->height - (y+sample_size);
-    int count_x = sample_size - min(dist_to_right, 0);
-    int count_y = sample_size - min(dist_to_bottom, 0);
+    int dist_to_right = img->width - (x + sample_size);
+    int dist_to_bottom = img->height - (y + sample_size);
+    int count_x = sample_size + min(dist_to_right, 0);
+    int count_y = sample_size + min(dist_to_bottom, 0);
 
     read_pixels2d(img, buf, count_x, count_y);
 

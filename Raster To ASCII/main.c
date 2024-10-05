@@ -8,7 +8,7 @@
 int main(int argc, char** argv) {
 	char* image_name = "image.jpg";
 	char* file_out_name = "";
-	int sample_size = 1;
+	int sample_size = 8;
 	if(argc > 1) {
 		image_name = argv[1];
 		if(argc > 2) {
