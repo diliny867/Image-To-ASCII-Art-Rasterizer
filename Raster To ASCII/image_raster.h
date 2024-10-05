@@ -57,7 +57,6 @@ static void get_current_pixel_xy(image* img, int* x, int* y) {
 }
 
 static int get_pixel_advance(image* img) {
-    assert(img->channels <= 4, "Cant convert image with more than 4 channels");
     int pixel = 0;
     for(int i = 0; i < img->channels; i++) {
         pixel += ((int)*(img->data+(img->current+i)*img->channels)) << (8*i);
@@ -95,41 +94,41 @@ float get_brightness(int pixel, int channels) {
     return brightness;
 }
 
-// res == 1
+// sample_size == 1
 static char get_char(image* img) {
     float brightness = get_brightness(get_pixel_advance(img), img->channels);
     int ascii_count = sizeof(ascii_by_brightness)/sizeof(ascii_by_brightness[0]) - 1;
 	return ascii_by_brightness[(int)(brightness*(ascii_count-1))];
 }
 
-// res > 1
-static char get_char_w(image* img, int** buf, int res) {
+// sample_size > 1
+static char get_char_w(image* img, int** buf, int sample_size) {
     int x, y;
     get_current_pixel_xy(img, &x, &y);
-    int dist_to_right = img->width - (x+res);
-    int dist_to_bottom = img->height - (y+res);
-    int count_x = res - min(dist_to_right, 0);
-    int count_y = res - min(dist_to_bottom, 0);
+    int dist_to_right = img->width - (x+sample_size);
+    int dist_to_bottom = img->height - (y+sample_size);
+    int count_x = sample_size - min(dist_to_right, 0);
+    int count_y = sample_size - min(dist_to_bottom, 0);
 
     read_pixels2d(img, buf, count_x, count_y);
 
     float brightness = 0;
 
-    for(int j=0;j<res;j++) {
-        for(int i=0; i<res; i++) {
+    for(int j=0;j<sample_size;j++) {
+        for(int i=0; i<sample_size; i++) {
             brightness += get_brightness(buf[j][i], img->channels);
         }
     }
 
-    brightness /= res*res;
+    brightness /= sample_size*sample_size;
     int ascii_count = sizeof(ascii_by_brightness)/sizeof(ascii_by_brightness[0]) - 1;
     return ascii_by_brightness[(int)(brightness*(ascii_count-1))];
 }
 
 
-static void write_raster_to_file(image* img, FILE* file, int res) {
+static void write_raster_to_file(image* img, FILE* file, int sample_size) {
     char* line_buf;
-	if(res == 1) { 
+	if(sample_size == 1) { 
         line_buf = malloc((img->width + 1) * sizeof(char));
         line_buf[img->width] = '\0';
         for(int j=0;j<img->height;j+=1) {
@@ -139,22 +138,22 @@ static void write_raster_to_file(image* img, FILE* file, int res) {
             fprintf(file, "%s\n", line_buf);
         }
 	}else {
-        int** buf = malloc(sizeof(int*) * res);
-        for(int i=0;i<res;i++) {
-            buf[i] = malloc(sizeof(int) * res);
+        int** buf = malloc(sizeof(int*) * sample_size); //buf that will collect sample_size*sample_size pixel data
+        for(int i=0;i<sample_size;i++) {
+            buf[i] = malloc(sizeof(int) * sample_size);
         }
-        int x_len = (img->width-1)/res + 1;
-        int y_len = (img->height-1)/res + 1;
+        int x_len = (img->width-1)/sample_size + 1;
+        int y_len = (img->height-1)/sample_size + 1;
         int line_buf_len = x_len;
         line_buf = malloc((line_buf_len + 1) * sizeof(char));
         line_buf[line_buf_len] = '\0';
         for(int j=0;j<y_len;j+=1) {
             for(int i=0;i<x_len;i+=1) {
-                line_buf[i] = get_char_w(img, buf, res);
+                line_buf[i] = get_char_w(img, buf, sample_size);
             }
             fprintf(file, "%s\n", line_buf);
         }
-        for(int i=0;i<res;i++) {
+        for(int i=0;i<sample_size;i++) {
             free(buf[i]);
         }
         free(buf);
@@ -163,14 +162,16 @@ static void write_raster_to_file(image* img, FILE* file, int res) {
     
 }
 
-int raster_to_ascii(char* image_name, char* file_out_name, int resolution) {
-    assert(resolution >= 1, "resolution can't be lower than 1");
+int raster_to_ascii(char* image_name, char* file_out_name, int sample_size) {
+    assert(sample_size >= 1, "Sample size can't be lower than 1");
     int width, height, channels;
     unsigned char *stb_img = stbi_load(image_name, &width, &height, &channels, 0);
     if (stb_img == NULL) {
         printf("Failed to load image\n");
         return -1;
     }
+
+    assert(channels <= 4, "Cant convert image with more than 4 channels");
 
     if(strcmp(file_out_name, "") == 0 || strcmp(file_out_name, image_name) == 0) {
         int img_name_len = strlen(image_name);
@@ -186,7 +187,7 @@ int raster_to_ascii(char* image_name, char* file_out_name, int resolution) {
 
     image img = {stb_img, width, height, channels, 0};
 
-    write_raster_to_file(&img, file_out, resolution);
+    write_raster_to_file(&img, file_out, sample_size);
 
     fclose(file_out);
     stbi_image_free(stb_img);
