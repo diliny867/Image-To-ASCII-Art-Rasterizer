@@ -114,13 +114,13 @@ static char get_char_w(image* img, int** buf, int sample_size) {
 
     float brightness = 0;
 
-    for(int j=0;j<sample_size;j++) {
-        for(int i=0; i<sample_size; i++) {
+    for(int j=0;j<count_y;j++) {
+        for(int i=0; i<count_x; i++) {
             brightness += get_brightness(buf[j][i], img->channels);
         }
     }
 
-    brightness /= sample_size*sample_size;
+    brightness /= count_x * count_y;
     int ascii_count = sizeof(ascii_by_brightness)/sizeof(ascii_by_brightness[0]) - 1;
     return ascii_by_brightness[(int)(brightness*(ascii_count-1))];
 }
@@ -131,8 +131,8 @@ static void write_raster_to_file(image* img, FILE* file, int sample_size) {
 	if(sample_size == 1) { 
         line_buf = malloc((img->width + 1) * sizeof(char));
         line_buf[img->width] = '\0';
-        for(int j=0;j<img->height;j+=1) {
-            for(int i=0;i<img->width;i+=1) {
+        for(int j=0;j<img->height;j++) {
+            for(int i=0;i<img->width;i++) {
                 line_buf[i] = get_char(img);
             }
             fprintf(file, "%s\n", line_buf);
@@ -147,8 +147,8 @@ static void write_raster_to_file(image* img, FILE* file, int sample_size) {
         int line_buf_len = x_len;
         line_buf = malloc((line_buf_len + 1) * sizeof(char));
         line_buf[line_buf_len] = '\0';
-        for(int j=0;j<y_len;j+=1) {
-            for(int i=0;i<x_len;i+=1) {
+        for(int j=0;j<y_len;j++) {
+            for(int i=0;i<x_len;i++) {
                 line_buf[i] = get_char_w(img, buf, sample_size);
             }
             fprintf(file, "%s\n", line_buf);
@@ -164,13 +164,13 @@ static void write_raster_to_file(image* img, FILE* file, int sample_size) {
 
 int raster_to_ascii(char* image_name, char* file_out_name, int sample_size) {
     assert(sample_size >= 1, "Sample size can't be lower than 1");
+
     int width, height, channels;
     unsigned char *stb_img = stbi_load(image_name, &width, &height, &channels, 0);
     if (stb_img == NULL) {
         printf("Failed to load image\n");
         return -1;
     }
-
     assert(channels <= 4, "Cant convert image with more than 4 channels");
 
     if(strcmp(file_out_name, "") == 0 || strcmp(file_out_name, image_name) == 0) {
@@ -186,14 +186,16 @@ int raster_to_ascii(char* image_name, char* file_out_name, int sample_size) {
 
     FILE* file_out = fopen(file_out_name, "w");
 
+    sample_size = clamp_max(sample_size, max(width,height));
+
     printf("Input file: \"%s\", output file: \"%s\", sample size: %d\n", image_name, file_out_name, sample_size);
     printf("Image data: width: %d, height: %d, channels: %d\n", width, height, channels);
     printf("Converting to ASCII art...\n\n");
 
     write_raster_to_file(&img, file_out, sample_size);
 
-    int size_x = (width-1)/sample_size+1;
-    int size_y = (height-1)/sample_size+1;
+    int size_x = (width-1)/sample_size + 1;
+    int size_y = (height-1)/sample_size + 1;
     printf("Successfully converted to ASCII art\n");
     printf("ASCII art size is x: %d by y: %d = %llu characters\n", size_x, size_y, ((size_t)size_x)*((size_t)size_y));
 
