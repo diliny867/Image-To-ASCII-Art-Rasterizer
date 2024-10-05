@@ -16,7 +16,7 @@ typedef struct {
 } image;
 
 
-char ascii_by_brightness[] = "`.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@";
+static char ascii_by_brightness[] = "`.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@";
 
 static int clamp(int val, int min, int max) {
 	if(val < min) {
@@ -86,7 +86,7 @@ static void read_pixels2d(image* img, int** buf, int count_x, int count_y) {
     }
 }
 
-float get_brightness(int pixel, int channels) {
+static float get_brightness(int pixel, int channels) {
     unsigned char r, g, b, a;
     get_rgba(pixel, &r, &g, &b, &a);
     const float inv_255 = 1.f/255.f;
@@ -182,13 +182,22 @@ int raster_to_ascii(char* image_name, char* file_out_name, int sample_size) {
         strcpy_s(file_out_name + img_name_len, name_postfix_len + 1, name_postfix);
     }
 
-    FILE* file_out = fopen(file_out_name, "w");
-    free(file_out_name);
-
     image img = {stb_img, width, height, channels, 0};
+
+    FILE* file_out = fopen(file_out_name, "w");
+
+    printf("Input file: \"%s\", output file: \"%s\", sample size: %d\n", image_name, file_out_name, sample_size);
+    printf("Image data: width: %d, height: %d, channels: %d\n", width, height, channels);
+    printf("Converting to ASCII art...\n\n");
 
     write_raster_to_file(&img, file_out, sample_size);
 
+    int size_x = (width-1)/sample_size+1;
+    int size_y = (height-1)/sample_size+1;
+    printf("Successfully converted to ASCII art\n");
+    printf("ASCII art size is x: %d by y: %d = %llu characters\n", size_x, size_y, ((size_t)size_x)*((size_t)size_y));
+
+    free(file_out_name);
     fclose(file_out);
     stbi_image_free(stb_img);
     return 0;
