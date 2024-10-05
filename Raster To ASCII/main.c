@@ -6,6 +6,6 @@
 
 
 int main(int argc, char** argv) {
-	raster_to_ascii("image.jpg", "", 5);
+	raster_to_ascii("image.jpg", "", 1);
 	return 0;
 }
