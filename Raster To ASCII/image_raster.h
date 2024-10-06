@@ -16,9 +16,9 @@ typedef struct {
 } image;
 
 
-static char ascii_by_brightness[] = "`.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@";
+static char ascii_by_brightness[] = " `.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@";
 
-static int clamp(int val, int min, int max) {
+static inline int clamp(int val, int min, int max) {
 	if(val < min) {
         return min;
 	}
@@ -27,31 +27,31 @@ static int clamp(int val, int min, int max) {
     }
     return val;
 }
-static int clamp_min(int val, int min) {
+static inline int clamp_min(int val, int min) {
 	if(val < min) {
         return min;
 	}
     return val;
 }
-static int clamp_max(int val, int max) {
+static inline int clamp_max(int val, int max) {
     if(val > max) {
         return max;
     }
     return val;
 }
 
-static void get_rgba(int pixel, unsigned char* r, unsigned char* g, unsigned char* b, unsigned char* a) {
-    *r = (char)(pixel>>24);
-    *g = (char)(pixel>>16);
-    *b = (char)(pixel>>8);
-    *a = (char)pixel;
+static inline void get_rgba(int pixel, unsigned char* r, unsigned char* g, unsigned char* b, unsigned char* a) {
+    *r = (unsigned char)(pixel>>24);
+    *g = (unsigned char)(pixel>>16);
+    *b = (unsigned char)(pixel>>8);
+    *a = (unsigned char)pixel;
 }
 
-static void set_current_pixel(image* img, int x, int y) {
+static inline void set_current_pixel(image* img, int x, int y) {
     img->current = y*img->width + x;
 }
 
-static void get_current_pixel_xy(image* img, int* x, int* y) {
+static inline void get_current_pixel_xy(image* img, int* x, int* y) {
     *y = img->current / img->width;
     *x = img->current - (*y) * img->width;
 }
@@ -81,7 +81,7 @@ static void read_pixels2d(image* img, int** buf, int count_x, int count_y) {
         img->current = current + img->width * j; //add row
         read_pixels(img, buf[j], count_x);
     }
-    if(x + count_x < img->width) {
+    if(x + count_x < img->width) { // if not reached end, put to intial row + amount read
         img->current = current + count_x;
     }
 }
@@ -94,11 +94,15 @@ static float get_brightness(int pixel, int channels) {
     return brightness;
 }
 
+static char get_ascii(float brightness) {
+    int ascii_count = sizeof(ascii_by_brightness)/sizeof(ascii_by_brightness[0]) - 1;
+    return ascii_by_brightness[clamp_max((int)(brightness * (float)ascii_count), ascii_count-1)];
+}
+
 // sample_size == 1
 static char get_char(image* img) {
     float brightness = get_brightness(get_pixel_advance(img), img->channels);
-    int ascii_count = sizeof(ascii_by_brightness)/sizeof(ascii_by_brightness[0]) - 1;
-	return ascii_by_brightness[(int)(brightness*(ascii_count-1))];
+    return get_ascii(brightness);
 }
 
 // sample_size > 1
@@ -121,8 +125,7 @@ static char get_char_w(image* img, int** buf, int sample_size) {
     }
 
     brightness /= count_x * count_y;
-    int ascii_count = sizeof(ascii_by_brightness)/sizeof(ascii_by_brightness[0]) - 1;
-    return ascii_by_brightness[(int)(brightness*(ascii_count-1))];
+    return get_ascii(brightness);
 }
 
 
@@ -174,9 +177,9 @@ int raster_to_ascii(char* image_name, char* file_out_name, int sample_size) {
     assert(channels <= 4, "Cant convert image with more than 4 channels");
 
     if(strcmp(file_out_name, "") == 0 || strcmp(file_out_name, image_name) == 0) {
-        int img_name_len = strlen(image_name);
+        size_t img_name_len = strlen(image_name);
         const char name_postfix[] = ".out.txt";
-        int name_postfix_len = strlen(name_postfix);
+        size_t name_postfix_len = strlen(name_postfix);
         file_out_name = malloc(sizeof(char) * (img_name_len + name_postfix_len + 1));
         strcpy_s(file_out_name, img_name_len + 1, image_name);
         strcpy_s(file_out_name + img_name_len, name_postfix_len + 1, name_postfix);
@@ -189,7 +192,7 @@ int raster_to_ascii(char* image_name, char* file_out_name, int sample_size) {
     sample_size = clamp_max(sample_size, max(width,height));
 
     printf("Input file: \"%s\", output file: \"%s\", sample size: %d\n", image_name, file_out_name, sample_size);
-    printf("Image data: width: %d, height: %d, channels: %d\n", width, height, channels);
+    printf("Image data: width: %d, height: %d, total: %llu, channels: %d\n", width, height, (size_t)width*(size_t)height, channels);
     printf("Converting to ASCII art...\n\n");
 
     write_raster_to_file(&img, file_out, sample_size);
@@ -197,7 +200,7 @@ int raster_to_ascii(char* image_name, char* file_out_name, int sample_size) {
     int size_x = (width-1)/sample_size + 1;
     int size_y = (height-1)/sample_size + 1;
     printf("Successfully converted to ASCII art\n");
-    printf("ASCII art size is x: %d by y: %d = %llu characters\n", size_x, size_y, ((size_t)size_x)*((size_t)size_y));
+    printf("ASCII art size: width %d, height: %d, total: %llu characters\n", size_x, size_y, (size_t)size_x*(size_t)size_y);
 
     free(file_out_name);
     fclose(file_out);
